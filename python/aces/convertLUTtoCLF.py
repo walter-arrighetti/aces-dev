@@ -38,16 +38,16 @@ genericLUT = {  # accepted_size  newline  1st.ch  red1st  float.fmt  nextch  com
 
 def parse_IridasCube(lines):
 	samples = []
-	line = lines[0].strip()
+	line = lines[0].strip().split()
 	if not (line[0]=="LUT_3D_SIZE" and line[1].isdigit()):	return None
 	resolution = [int(line[1]), int(line[1]), int(line[1])]
 	if len(lines)-1 != resolution[0]**3:	return None
 	for n in range(1,len(lines)):
-		sample = map(float,lines[n].split())
+		sample = map(float,lines[n].strip().split())
 		if len(sample)!=3:	break
 		samples.extend(sample)
 	if len(samples) != 3*(resolution[0]**3):	return None
-	lutpn = clf.LUT3D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut3d", "lut3d", interpolation='linear')
+	lutpn = clf.LUT3D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut3d", "lut3d")
 	lutpn.setArray(resolution, samples)
 	del samples
 	return [ lutpn ]
@@ -55,10 +55,81 @@ def parse_IridasCube(lines):
 
 
 def parse_Lustre3DL(lines):
-	
+	pass
 
 
 def parse_NucodaCMS(lines):
+	cursor, title, has1D, has3D, range1D, range3D = 0, None, 0, 0, (None,None), (None,None)
+	line, side, size = lines[0].strip().split(), 0, 0
+	lutpns, samples1D, samples3D = [], [], []
+
+	if not line[0]=="NUCODA_3D_CUBE" and line[1].isdigit()):	return None
+	CMSver = int(line[1])
+	if not 1 <= CMSver <= 3:	return None
+
+	for n in range(1,len(lines)):
+		line = lines[n].strip().split()
+		if (not title) and line[0]=="TITLE":
+			if line[1].startswith('"') and line[1].endswith('"'):	title = line[1].strip('"')
+			elif line[1].startswith("'") and line[1].endswith("'"):	title = line[1].strip("'")
+			else:	title = line[1].strip()
+			continue
+		if line[0]=="LUT_1D_SIZE" and line[1].isdigit():
+			has1d = has3d+1
+			size = int(line[1])
+		elif line[0]=="LUT_3D_SIZE" and line[1].isdigit():
+			has3d = has1d+1
+			side = int(line[1])
+		elif CMSver>=3 and has1d and line[0]=="LUT_1D_INPUT_RANGE" and len(line)==3:
+			range1D = (float(line[1]), float(line[2]))
+		elif CMSver>=3 and has3d and line[0]=="LUT_3D_INPUT_RANGE" and len(line)==3:
+			range3D = (float(line[1]), float(line[2]))
+		elif len(line)==3 and line[0][0].isdigit() and line[1][0].isdigit() and line[2][0].isdigit():
+			cursor = n
+			break
+		else:	return None
+	if (not cursor) or ((not has1d) and (not has3d)):	return None
+
+	if has1d and ((not has3d) or has1d<has3d):	# 1D LUT is either alone or comes *before* 3D LUT
+		for n in range(cursor, cursor+size):
+			samples1D.extend( map(float,lines[n].split()) )
+		cursor += size
+		if range1D not in [(None,None),(1.,0.)]:
+			rangepn = clf.Range(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "range", "range")
+			rangepn.setMinInValue(range1D[0])
+			rangepn.setMaxInValue(range1D[1])
+			rangepn.setMinOutValue(0.0)
+			rangepn.setMaxOutValue(1.0)
+			lutpns.append(rangepn)
+		lutpn = clf.LUT1D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut1d", "lut1d")
+		lutpn.setArray(size, samples3D)
+		lutpns.append(lutpn)
+	if has3d:									# 3D LUT is either alone or comes *before* 1D LUT
+		for n in range(cursor, cursor+(side**3)):
+			samples3D.extend( map(float,lines[n].split()) )
+		cursor += side**3
+		lutpn = clf.LUT3D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut3d", "lut3d")
+		lutpn.setArray([side,side,side], samples3D)
+		lutpns.append(lutpn)
+	if has1d and has1d>has3d:					# 1D LUT comes *after* 3D LUT
+		for n in range(cursor, cursor+size):
+			samples1D.extend( map(float,lines[n].split()) )
+		cursor += sidz**3
+		if range3D not in [(None,None),(1.,0.)]:
+			rangepn = clf.Range(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "range", "range")
+			rangepn.setMinInValue(range3D[0])
+			rangepn.setMaxInValue(range3D[1])
+			rangepn.setMinOutValue(0.0)
+			rangepn.setMaxOutValue(1.0)
+			lutpns.append(rangepn)
+		lutpn = clf.LUT1D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut1d", "lut1d")
+		lutpn.setArray(size, samples3D)
+		lutpns.append(lutpn)
+	if not lutpns:	return None
+	del samples1D, samples3D, lutpn
+	return lutpns
+
+
 
 
 
@@ -76,7 +147,7 @@ def parse_ClipsterXML(lines):
 		r, g, b = float(sample[0])/renorm, float(sample[1])/renorm, float(sample[2])/renorm
 		samples.extend([r,g,b])
 	if len(samples) != 3*(side**3):	return None
-	lutpn = clf.LUT3D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut3d", "lut3d", interpolation='linear')
+	lutpn = clf.LUT3D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut3d", "lut3d")
 	lutpn.setArray(resolution, samples)
 	del samples
 	return [ lutpn ]
