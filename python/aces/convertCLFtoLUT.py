@@ -25,8 +25,6 @@ LUTDATAFORMAT_1D_3D_1D = '1D_3D_1D'
 genericLUT = convertLUTtoCLF.genericLUT
 
 
-
-
 def write_3d(filename, 
 			 from_min, 
 			 from_max, 
@@ -950,7 +948,7 @@ def write_genericLUT_3d(filename,
 				 comment=None):
 	
 	integer_output = False
-	print( ' '.join(map(str, resolution)) )
+	print ' '.join(map(str, resolution))
 	
 	if format not in genericLUT.keys():
 		print "Invalid LUT format"
@@ -979,7 +977,6 @@ def write_genericLUT_3d(filename,
 				fp.write("# %s%s"%(comment,newline))
 				fp.write(newline)
 		
-		
 		if format == "iridasCube":
 			fp.write("LUT_3D_SIZE %d%s"%(resolution[0],newline))
 			fp.write(newline)
@@ -987,7 +984,6 @@ def write_genericLUT_3d(filename,
 			integer_output = 65535
 			fp.write('<LUT3D name="%s" N="%d" BitDepth="%d">'%(os.path.split(filename)[1],lutResolution3d,16) +newline)
 			fp.write('	<values>'+newline)
-		
 		elif format == "davinciCube":
 			fp.write("TITLE \"Generate by Resolve\""+newline)
 			fp.write("LUT_3D_SIZE %d%s"%(resolution[0],newline))
@@ -998,7 +994,7 @@ def write_genericLUT_3d(filename,
 			fp.write(newline)
 			fp.write("LUT_3D_SIZE %d"%resolution[0] +newline)
 			fp.write(newline)
-		elif format == "":
+		#elif format == "":
 		
 		
 		if integer_output and type(integer_output)==type(1):
@@ -1007,7 +1003,7 @@ def write_genericLUT_3d(filename,
 					for r in range(lutResolution3d[2]):
 						samples3d[r][g][b] = int( integer_output * samples3d[r][g][b] )
 		
-		# Note: DOES Iridas .cube's increment RED fastest
+		# Note: DOES Iridas .cube's increment RED fastest ?
 		if red1st:
 			for b in range(resolution[0]):
 				for g in range(resolution[1]):
@@ -1025,7 +1021,7 @@ def write_genericLUT_3d(filename,
 		if format == "Clipster":
 			fp.write('</values>'+newline)
 			fp.write('</LUT3D>'+newline)
-		elif format == "":
+		#elif format == "":
 
 
 
@@ -1110,17 +1106,17 @@ def write_genericLUT_1d_3d(lutPath,
 				entry = prenextch.join(map(lambda x : "%%%s"%precoordfmt % x, samples1dIn[c]))
 				fp.write("%3s"%(prefirstch,entry,newline))
 			fp.write(newline)
-		elif format == "":
-			for c in range(3):
-				fp.write('%d\n' % lutResolution1dIn)
-				for s in range(lutResolution1dIn):
-					value = (float(s)/(lutResolution1dIn-1))*(
-						inputMax - inputMin) + inputMin
-					fp.write('%f ' % value)
-				fp.write('\n')
-				for s in range(lutResolution1dIn):
-					fp.write('%f ' % samples1dIn[s*3 + c])
-				fp.write('\n')
+		#elif format == "":
+		#	for c in range(3):
+		#		fp.write('%d\n' % lutResolution1dIn)
+		#		for s in range(lutResolution1dIn):
+		#			value = (float(s)/(lutResolution1dIn-1))*(
+		#				inputMax - inputMin) + inputMin
+		#			fp.write('%f ' % value)
+		#		fp.write('\n')
+		#		for s in range(lutResolution1dIn):
+		#			fp.write('%f ' % samples1dIn[s*3 + c])
+		#		fp.write('\n')
 		
 		if integer_output and type(integer_output)==type(1):
 			for b in range(lutResolution3d[0]):
@@ -1128,7 +1124,7 @@ def write_genericLUT_1d_3d(lutPath,
 					for r in range(lutResolution3d[2]):
 						samples3d[r][g][b] = int( integer_output * samples3d[r][g][b] )
 		
-		# Note: DOES Iridas .cube's increment RED fastest
+		# Note: DOES Iridas .cube's increment RED fastest ?
 		if red1st:
 			for b in range(lutResolution3d[0]):
 				for g in range(lutResolution3d[1]):
@@ -1148,7 +1144,7 @@ def write_genericLUT_1d_3d(lutPath,
 			fp.write(newline)
 			fp.write("LUT8"+newline)
 			fp.write("gamma 1.0"+newline)
-		elif format == "":
+		#elif format == "":
 
 
 def main():
