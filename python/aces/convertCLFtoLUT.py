@@ -3,10 +3,11 @@
 """
 Functions to convert from CommonLUT Format (CLF) into different LUT formats
 Additional WRITE formats added by Walter Arrighetti PhD (walter.arrighetti@gmail.com):
+	* FilmLight Truelight Cube, .cub extension (3D, 1D+3D or 1D LUT)
 	* IRIDAS Cube, .cube extension (3D LUT)
 	* DaVinci Resolve Cube, .cube extension (3D LUT)
-	* Autodesk Lustre 3D LUT, .3dl extension (1D+3D LUT)
-	* Nucoda Color Management System (CMS), .cms extension (3D or 1D+3D LUT)
+	* Autodesk Lustre 3D LUT, .3dl extension (3D LUT)
+	* Digital Vision Nucoda Color Management System (CMS), .cms extension (3D, 1D+3D or 1D LUT)
 	* Rohde & Schwarz Clipster 3D LUT, .xml extension (3D LUT)
 """
 import array
@@ -24,6 +25,534 @@ LUTDATAFORMAT_1D_3D_1D = '1D_3D_1D'
 
 genericLUT = convertLUTtoCLF.genericLUT
 
+
+
+
+################## THIS IS PART OF H.P.Duiker's original convertCLFtoLUT.py and was not changed
+def write_SPI_1d(filename, 
+                 from_min, 
+                 from_max, 
+                 data, 
+                 entries, 
+                 channels, 
+                 components=3):
+    """
+    Object description.
+
+    Credit to *Alex Fry* for the original single channel version of the spi1d
+    writer.
+
+    Parameters
+    ----------
+    parameter : type
+        Parameter description.
+
+    Returns
+    -------
+    type
+         Return value description.
+    """
+
+    # May want to use fewer components than there are channels in the data
+    # Most commonly used for single channel LUTs
+    components = min(3, components, channels)
+
+    with open(filename, 'w') as fp:
+        fp.write('Version 1\n')
+        fp.write('From %f %f\n' % (from_min, from_max))
+        fp.write('Length %d\n' % entries)
+        fp.write('Components %d\n' % components)
+        fp.write('{\n')
+        for i in range(0, entries):
+            entry = ''
+            for j in range(0, components):
+                entry = '%s %s' % (entry, data[i * channels + j])
+            fp.write('        %s\n' % entry)
+        fp.write('}\n')
+
+def write_SPI_3d(filename, 
+                 from_min, 
+                 from_max, 
+                 data, 
+                 resolution):
+    """
+    Object description.
+
+    Parameters
+    ----------
+    parameter : type
+        Parameter description.
+
+    Returns
+    -------
+    type
+         Return value description.
+    """
+
+    #print( ' '.join(map(str, resolution)) )
+
+    with open(filename, 'w') as fp:
+        fp.write('SPILUT 1.0\n')
+        fp.write('3 3\n')
+        fp.write('%s\n' % ' '.join(map(str, resolution)) )
+ 
+        for r in range(resolution[0]):
+            for g in range(resolution[1]):
+                for b in range(resolution[2]):
+                    entry  = " ".join(map(str,[r,g,b]))
+                    entry += " "
+                    entry += " ".join(map(str, data[r][g][b]))
+                    fp.write('%s\n' % entry)
+
+def write_CSP_1d(filename, 
+                 from_min, 
+                 from_max, 
+                 data, 
+                 entries, 
+                 channels, 
+                 components=3):
+    """
+    Object description.
+
+    Parameters
+    ----------
+    parameter : type
+        Parameter description.
+
+    Returns
+    -------
+    type
+         Return value description.
+    """
+
+    # May want to use fewer components than there are channels in the data
+    # Most commonly used for single channel LUTs
+    components = min(3, components, channels)
+
+    with open(filename, 'w') as fp:
+        fp.write('CSPLUTV100\n')
+        fp.write('1D\n')
+        fp.write('\n')
+        fp.write('BEGIN METADATA\n')
+        fp.write('END METADATA\n')
+
+        fp.write('\n')
+
+        fp.write('2\n')
+        fp.write('%f %f\n' % (from_min, from_max))
+        fp.write('0.0 1.0\n')
+        fp.write('2\n')
+        fp.write('%f %f\n' % (from_min, from_max))
+        fp.write('0.0 1.0\n')
+        fp.write('2\n')
+        fp.write('%f %f\n' % (from_min, from_max))
+        fp.write('0.0 1.0\n')
+
+        fp.write('\n')
+
+        fp.write('%d\n' % entries)
+        if components == 1:
+          for i in range(0, entries):
+              entry = ''
+              for j in range(3):
+                  entry = '%s %3.6f' % (entry, data[i * channels])
+              fp.write('%s\n' % entry)
+        else:
+          for i in range(entries):
+              entry = ''
+              for j in range(components):
+                  entry = '%s %3.6f' % (entry, data[i * channels + j])
+              fp.write('%s\n' % entry)
+        fp.write('\n')
+
+def write_CSP_3d(filename, 
+                 from_min, 
+                 from_max, 
+                 data, 
+                 resolution):
+    """
+    Object description.
+
+    Parameters
+    ----------
+    parameter : type
+        Parameter description.
+
+    Returns
+    -------
+    type
+         Return value description.
+    """
+
+    print( ' '.join(map(str, resolution)) )
+
+    with open(filename, 'w') as fp:
+        fp.write('CSPLUTV100\n')
+        fp.write('3D\n')
+        fp.write('\n')
+        fp.write('BEGIN METADATA\n')
+        fp.write('END METADATA\n')
+
+        fp.write('\n')
+
+        fp.write('2\n')
+        fp.write('%f %f\n' % (from_min, from_max))
+        fp.write('0.0 1.0\n')
+        fp.write('2\n')
+        fp.write('%f %f\n' % (from_min, from_max))
+        fp.write('0.0 1.0\n')
+        fp.write('2\n')
+        fp.write('%f %f\n' % (from_min, from_max))
+        fp.write('0.0 1.0\n')
+
+        fp.write('\n')
+
+        fp.write('%s\n' % ' '.join(map(str, resolution)) )
+ 
+        # Note: CSP increments red fastest
+        for b in range(resolution[0]):
+            for g in range(resolution[1]):
+                for r in range(resolution[2]):
+                    entry = " ".join(map(lambda x : "%3.6f" % x, data[r][g][b]))
+                    fp.write('%s\n' % entry)
+
+def write_CSP_1d_3d(lutPath,
+                    samples1dIn,
+                    lutResolution1dIn,
+                    inputMin,
+                    inputMax,
+                    samples3d,
+                    lutResolution3d):
+
+    #print( ' '.join(map(str, lutResolution3d)) )
+
+    with open(lutPath, 'w') as fp:
+        fp.write('CSPLUTV100\n')
+        fp.write('3D\n')
+        fp.write('\n')
+        fp.write('BEGIN METADATA\n')
+        fp.write('END METADATA\n')
+
+        fp.write('\n')
+
+        for c in range(3):
+            fp.write('%d\n' % lutResolution1dIn)
+
+            for s in range(lutResolution1dIn):
+                value = (float(s)/(lutResolution1dIn-1))*(
+                    inputMax - inputMin) + inputMin
+                fp.write('%f ' % value)
+            fp.write('\n')
+
+            for s in range(lutResolution1dIn):
+                fp.write('%f ' % samples1dIn[s*3 + c])
+            fp.write('\n')
+
+        fp.write('\n')
+
+        fp.write('%s\n' % ' '.join(map(str, lutResolution3d)) )
+ 
+        # Note: CSP increments red fastest
+        for b in range(lutResolution3d[0]):
+            for g in range(lutResolution3d[1]):
+                for r in range(lutResolution3d[2]):
+                    entry = " ".join(map(lambda x : "%3.6f" % x, samples3d[r][g][b]))
+                    fp.write('%s\n' % entry)
+
+def write_CLF_1d_3d_1d(lutPath,
+                       samples1dIn,
+                       lutResolution1dIn,
+                       inputMin,
+                       inputMax,
+                       samples3d,
+                       lutResolution3d,
+                       samples1dOut,
+                       lutResolution1dOut,
+                       outputMin,
+                       outputMax,
+                       inversesUseIndexMaps=True,
+                       inversesUseHalfDomain=True):
+
+    lutpns = []
+
+    # Create the input shaper
+    if samples1dIn:
+        if inversesUseIndexMaps:
+            print( "Generating inverse of 1D LUT using Index Maps")
+            lutpnInverses = convertLUTtoCLF.generateLUT1DInverseIndexMap([lutResolution1dIn, 3], samples1dIn, inputMin, inputMax)
+        elif inversesUseHalfDomain:
+            print( "Generating full half-domain inverse of 1D LUT")
+            lutpnInverses = convertLUTtoCLF.generateLUT1DInverseHalfDomain([lutResolution1dIn, 3], samples1dIn, inputMin, inputMax, rawHalfs=True)
+        else:
+            print( "Generating resampled inverse of 1D LUT")
+            lutpnInverses = convertLUTtoCLF.generateLUT1DInverseResampled([lutResolution1dIn, 3], samples1dIn, inputMin, inputMax)            
+        lutpns.extend(lutpnInverses)
+
+    # Create the 3D LUT
+    clfSamples = [0.0]*(lutResolution3d[0]*lutResolution3d[1]*lutResolution3d[2])*3
+    index = 0
+    for r in range(lutResolution3d[0]):
+        for g in range(lutResolution3d[1]):
+            for b in range(lutResolution3d[2]):
+                for c in range(3):
+                    clfSamples[index] = samples3d[r][g][b][c]
+                    index += 1
+
+    interpolation = 'trilinear'
+    lut3dpn = clf.LUT3D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut3d", "lut3d", interpolation=interpolation)
+    lut3dpn.setArray([lutResolution3d[0], lutResolution3d[1], lutResolution3d[2]], clfSamples)
+
+    lutpns.append(lut3dpn)
+
+    # Create the output shaper
+    if samples1dOut:
+        interpolation = 'linear'
+        lutpn = clf.LUT1D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut1d", "lut1d", interpolation=interpolation)
+        lutpn.setArray(3, samples1dOut)
+
+        lutpns.append(lutpn)
+
+    # Wrap in a ProcessList and write to disk
+    pl = clf.ProcessList()
+
+    # Populate
+    pl.setID('Converted lut')
+    pl.setCompCLFversion(1.0)
+    pl.setName('Converted lut')
+
+    for lutpn in lutpns:
+        pl.addProcess(lutpn)
+
+    # Write CLF to disk
+    pl.writeFile(lutPath) 
+
+def write_CTL_1d(filename, 
+                 from_min, 
+                 from_max, 
+                 data, 
+                 entries, 
+                 channels, 
+                 components=3):
+    """
+    Object description.
+
+    Parameters
+    ----------
+    parameter : type
+        Parameter description.
+
+    Returns
+    -------
+    type
+         Return value description.
+    """
+
+    # May want to use fewer components than there are channels in the data
+    # Most commonly used for single channel LUTs
+    components = min(3, components, channels)
+
+    with open(filename, 'w') as fp:
+        fp.write('// %d x %d 1D LUT generated by "convertCLFtoLUT"\n' % (
+          entries, components))
+        fp.write('\n')
+        fp.write('const float min1d = %3.9f;\n' % from_min)
+        fp.write('const float max1d = %3.9f;\n' % from_max)
+        fp.write('\n')
+
+        # Write LUT
+        if components == 1:
+          fp.write('const float lut[] = {\n')
+          for i in range(0, entries):
+              fp.write('%s' % data[i * channels])
+              if i != (entries-1):
+                fp.write(',')
+              fp.write('\n')
+          fp.write('};\n')
+          fp.write('\n')
+        else:
+          for j in range(components):
+            fp.write('const float lut%d[] = {\n' % j)
+            for i in range(0, entries):
+                fp.write('%s' % data[i * channels])
+                if i != (entries-1):
+                  fp.write(',')
+                fp.write('\n')
+            fp.write('};\n')
+            fp.write('\n')
+
+        fp.write('void main\n')
+        fp.write('(\n')
+        fp.write('  input varying float rIn,\n')
+        fp.write('  input varying float gIn,\n')
+        fp.write('  input varying float bIn,\n')
+        fp.write('  input varying float aIn,\n')
+        fp.write('  output varying float rOut,\n')
+        fp.write('  output varying float gOut,\n')
+        fp.write('  output varying float bOut,\n')
+        fp.write('  output varying float aOut\n')
+        fp.write(')\n')
+        fp.write('{\n')
+        fp.write('  float r = rIn;\n')
+        fp.write('  float g = gIn;\n')
+        fp.write('  float b = bIn;\n')
+        fp.write('\n')
+        fp.write('  // Apply LUT\n')
+        if components == 1:
+          fp.write('  r = lookup1D(lut, min1d, max1d, r);\n')
+          fp.write('  g = lookup1D(lut, min1d, max1d, g);\n')
+          fp.write('  b = lookup1D(lut, min1d, max1d, b);\n')
+        elif components == 3:
+          fp.write('  r = lookup1D(lut0, min1d, max1d, r);\n')
+          fp.write('  g = lookup1D(lut1, min1d, max1d, g);\n')
+          fp.write('  b = lookup1D(lut2, min1d, max1d, b);\n')          
+        fp.write('\n')
+        fp.write('  rOut = r;\n')
+        fp.write('  gOut = g;\n')
+        fp.write('  bOut = b;\n')
+        fp.write('  aOut = aIn;\n')
+        fp.write('}\n')
+
+def write_CTL_3d(filename, 
+                 from_min, 
+                 from_max, 
+                 data, 
+                 resolution):
+    """
+    Object description.
+
+    Parameters
+    ----------
+    parameter : type
+        Parameter description.
+
+    Returns
+    -------
+    type
+         Return value description.
+    """
+
+    with open(filename, 'w') as fp:
+        fp.write('// %d x %d x %d 3D LUT generated by "convertCLFtoLUT"\n' % (
+          resolution[0], resolution[1], resolution[2]))
+        fp.write('\n')
+        fp.write('const float min3d[3] = {%3.9f, %3.9f, %3.9f};\n' % (
+            from_min, from_min, from_min))
+        fp.write('const float max3d[3] = {%3.9f, %3.9f, %3.9f};\n' % (
+            from_max, from_max, from_max))
+        fp.write('\n')
+
+        # Write LUT
+        fp.write('const float cube[%d][%d][%d][3] = \n' % (
+            resolution[0], resolution[1], resolution[2]))
+
+        fp.write('{\n')
+        for r in range(resolution[0]):
+            fp.write('\t{\n')
+            for g in range(resolution[1]):
+                fp.write('\t\t{ ')
+                for b in range(resolution[2]):
+                    fp.write('{')
+                    entry = ", ".join(map(lambda x : "%3.6f" % x, data[r][g][b]))
+                    fp.write('%s' % entry)
+                    fp.write('}')
+                    if b != resolution[2]-1:
+                        fp.write(',\n\t\t  ')
+                    else:
+                        fp.write('\n ')
+                fp.write('}')
+                if g != resolution[1]-1:
+                    fp.write(',\n')
+                else:
+                    fp.write('\n')
+            fp.write('\t}')
+            if r != resolution[0]-1:
+                fp.write(', ')
+            else:
+                fp.write('\n')
+        fp.write('};\n')
+        fp.write('\n')
+
+        fp.write('void main\n')
+        fp.write('(\n')
+        fp.write('  input varying float rIn,\n')
+        fp.write('  input varying float gIn,\n')
+        fp.write('  input varying float bIn,\n')
+        fp.write('  input varying float aIn,\n')
+        fp.write('  output varying float rOut,\n')
+        fp.write('  output varying float gOut,\n')
+        fp.write('  output varying float bOut,\n')
+        fp.write('  output varying float aOut\n')
+        fp.write(')\n')
+        fp.write('{\n')
+        fp.write('  float r = rIn;\n')
+        fp.write('  float g = gIn;\n')
+        fp.write('  float b = bIn;\n')
+        fp.write('\n')
+        fp.write('  // Apply LUT\n')
+        fp.write('  lookup3D_f(cube, min3d, max3d, r, g, b, r, g, b);\n')
+        fp.write('\n')
+        fp.write('  rOut = r;\n')
+        fp.write('  gOut = g;\n')
+        fp.write('  bOut = b;\n')
+        fp.write('  aOut = aIn;\n')
+        fp.write('}\n')
+
+def write_1d(filename, 
+             from_min, 
+             from_max, 
+             data, 
+             data_entries, 
+             data_channels, 
+             lut_components=3,
+             format='spi1d'):
+    """
+    Object description.
+
+    Parameters
+    ----------
+    parameter : type
+        Parameter description.
+
+    Returns
+    -------
+    type
+         Return value description.
+    """
+
+    print( "Writing LUT : %s" % filename )
+
+    ocioFormatsToExtensions = {'cinespace' : 'csp',
+                               'flame'     : '3dl',
+                               'icc'       : 'icc',
+                               'houdini'   : 'lut',
+                               'lustre'    : '3dl',
+                               'ctl'       : 'ctl'}
+
+    if format in ocioFormatsToExtensions:
+        if ocioFormatsToExtensions[format] == 'csp':
+            write_CSP_1d(filename,
+                         from_min,
+                         from_max,
+                         data,
+                         data_entries,
+                         data_channels,
+                         lut_components)
+        elif ocioFormatsToExtensions[format] == 'ctl':
+            write_CTL_1d(filename,
+                         from_min,
+                         from_max,
+                         data,
+                         data_entries,
+                         data_channels,
+                         lut_components)
+    else:
+        write_SPI_1d(filename,
+                     from_min,
+                     from_max,
+                     data,
+                     data_entries,
+                     data_channels,
+                     lut_components)
 
 def write_3d(filename, 
 			 from_min, 
@@ -80,265 +609,6 @@ def write_3d(filename,
 	else:
 		print "Invalid Output 3D LUT format: supported ones are: %s"%(['CTL','CSP','spi3d'].extend(genericLUT.keys()))
 		exit 1
-
-def write_1d_3d_1d(lutPath,
-				   samples1dIn,
-				   lutResolution1dIn,
-				   inputMin,
-				   inputMax,
-				   samples3d,
-				   lutResolution3d,
-				   samples1dOut,
-				   lutResolution1dOut,
-				   outputMin,
-				   outputMax,
-				   lutFileFormat,
-				   comment):
-
-	print( "Writing LUT : %s" % lutPath )
-	ocioFormatsToExtensions = {'cinespace' : 'csp',
-							   'clf'	   : 'clf'}
-	#print( lutPath )
-	#print( lutFileFormat )
-
-	if lutFileFormat in ocioFormatsToExtensions:
-		if ocioFormatsToExtensions[lutFileFormat] == 'csp':
-			if samples1dOut == None:
-				write_CSP_1d_3d(lutPath,
-								samples1dIn,
-								lutResolution1dIn,
-								inputMin,
-								inputMax,
-								samples3d,
-								lutResolution3d)
-			else:
-				print( "write_1d_3d_1d - Cinespace (.csp) does not support an output shaper")
-		elif ocioFormatsToExtensions[lutFileFormat] == 'clf':
-			write_CLF_1d_3d_1d(lutPath,
-							   samples1dIn,
-							   lutResolution1dIn,
-							   inputMin,
-							   inputMax,
-							   samples3d,
-							   lutResolution3d,
-							   samples1dOut,
-							   lutResolution1dOut,
-							   outputMin,
-							   outputMax)
-	elif lutFileFormat in [ key.lower() for key in genericLUT.keys()]:
-		format = None
-		for key in genericLUT.keys():
-			if key.lower() == lutFileFormat and len(genericLUT[key])==7:
-				format = key
-				break
-		if not format:
-			print "Selected Output 3D LUT format does not support shaper-LUTs (1D+3D)."
-			return 2
-		write_genericLUT_1d_3d(filename,
-							   samples1dIn,
-							   lutResolution1dIn,
-							   inputMin,
-							   inputMax,
-							   samples3d,
-							   lutResolution3d,
-							   format,
-							   comment)
-	else:
-		print "Invalid Output 3D LUT format: supported ones are: %s"%(['CTL','CSP','spi3d'].extend(genericLUT.keys()))
-		exit 1
-
-def sampleAndWrite3D(processList,
-					 lutPath,
-					 lutFileFormat,
-					 lutResolution3d,
-					 inputMin,
-					 inputMax):
-	print( "sampleAndWrite3D" )
-
-	# Sample all values in 3D range
-	samples = [[[[0.0,0.0,0.0] for i in xrange(lutResolution3d[0])] for i in xrange(lutResolution3d[1])] for i in xrange(lutResolution3d[2])]
-
-	for r in range(lutResolution3d[0]):
-		for g in range(lutResolution3d[1]):
-			for b in range(lutResolution3d[2]):
-
-				sampleValueR = float(r)/(lutResolution3d[0]-1)*(
-					inputMax - inputMin) + inputMin
-				sampleValueG = float(g)/(lutResolution3d[1]-1)*(
-					inputMax - inputMin) + inputMin
-				sampleValueB = float(b)/(lutResolution3d[2]-1)*(
-					inputMax - inputMin) + inputMin
-				sampleValue = [sampleValueR, sampleValueG, sampleValueB]
-				lutValue = processList.process(sampleValue)
-
-				#print( "%d, %d, %d : %3.3f, %3.3f, %3.3f -> %3.3f, %3.3f, %3.3f" % (
-				#	r, g, b,
-				#	sampleValueR, sampleValueG, sampleValueB,
-				#	lutValue[0], lutValue[1], lutValue[2]))
-
-				samples[r][g][b] = lutValue
-
-	# Write 3D LUT
-	write_3d(lutPath,
-			 inputMin,
-			 inputMax,
-			 samples,
-			 lutResolution3d,
-			 lutFileFormat,
-			 comment)
-
-def sampleAndWrite1D3D1D(processList,
-						 lutPath,
-						 lutFileFormat,
-						 lutResolution1d3d1d,
-						 shaperIn,
-						 shaperOut):
-	print( "sampleAndWrite1D3D1D" )
-
-	(lutResolution1dIn, lutResolution3d, lutResolution1dOut) = lutResolution1d3d1d
-	(shaperInType, shaperInMin, shaperInMax) = shaperIn
-	(shaperOutType, shaperOutMin, shaperOutMax) = shaperOut
-
-	#
-	# Create the input and output shaper processLists
-	#
-	(shaperInPL, shaperInPLInverse, inputMin, inputMax) = createShaper(shaperInType, shaperInMin, shaperInMax)
-	(shaperOutPL, shaperOutPLInverse, outputMin, outputMax) = createShaper(shaperOutType, shaperOutMin, shaperOutMax)
-
-	#
-	# Create the input shaper samples
-	#
-	if shaperInType != None:
-		print( "sampleAndWrite1D3D1D - create input shaper" )
-
-		samples1dIn = [0.0]*lutResolution1dIn*3
-		for lutIndex in range(lutResolution1dIn):
-			sampleValue = float(lutIndex)/(lutResolution1dIn-1)*(
-				inputMax - inputMin) + inputMin
-
-			lutValue = shaperInPL.process([sampleValue]*3)
-
-			#print( "%3.3f -> %3.3f" % (sampleValue, lutValue[0]))
-
-			samples1dIn[lutIndex*3:(lutIndex+1)*3] = lutValue
-	else:
-		samples1dIn = None
-
-	#
-	# Sample all values in 3D range
-	# - Use the inverse sampler at the head of the sampling process
-	#
-	print( "sampleAndWrite1D3D1D - create 3D LUT" )
-
-	samples3d = [[[[0.0,0.0,0.0] for i in xrange(lutResolution3d[0])] for i in xrange(lutResolution3d[1])] for i in xrange(lutResolution3d[2])]
-
-	for r in range(lutResolution3d[0]):
-		for g in range(lutResolution3d[1]):
-			for b in range(lutResolution3d[2]):
-
-				sampleValueR = float(r)/(lutResolution3d[0]-1)
-				sampleValueG = float(g)/(lutResolution3d[1]-1)
-				sampleValueB = float(b)/(lutResolution3d[2]-1)
-				sampleValue = [sampleValueR, sampleValueG, sampleValueB]
-
-				if shaperInType != None:
-					shaperInInverseValue = shaperInPLInverse.process(sampleValue)
-				else:
-					shaperInInverseValue = sampleValue
-
-				processedValue = processList.process(shaperInInverseValue)
-
-				if shaperOutType != None:
-					shaperOutValue = shaperOutPL.process(processedValue)
-				else:
-					shaperOutValue = processedValue
-
-				lutValue = shaperOutValue
-
-				#print( "%d, %d, %d : %3.3f, %3.3f, %3.3f -> %3.3f, %3.3f, %3.3f" % (
-				#	r, g, b,
-				#	sampleValueR, sampleValueG, sampleValueB,
-				#	lutValue[0], lutValue[1], lutValue[2]))
-
-				samples3d[r][g][b] = lutValue
-
-	#
-	# Create the output shaper samples
-	#
-	if shaperOutType != None:
-		print( "sampleAndWrite1D3D1D - create output shaper" )
-
-		samples1dOut = [0.0]*lutResolution1dOut*3
-		for lutIndex in range(lutResolution1dOut):
-			sampleValue = float(lutIndex)/(lutResolution1dOut-1)
-
-			lutValue = shaperInPLInverse.process([sampleValue]*3)
-
-			samples1dOut[lutIndex*3:(lutIndex+1)*3] = lutValue
-	else:
-		samples1dOut = None
-
-	#
-	# Write 1D 3D 1D LUT
-	#
-	write_1d_3d_1d(lutPath,
-				   samples1dIn,
-				   lutResolution1dIn,
-				   inputMin,
-				   inputMax,
-				   samples3d,
-				   lutResolution3d,
-				   samples1dOut,
-				   lutResolution1dOut,
-				   outputMin,
-				   outputMax,
-				   lutFileFormat,
-				   comment)
-
-def convertCLFtoLUT(clfPath,
-					lutPath,
-					lutFileFormat,
-					lutDataFormat=LUTDATAFORMAT_1D,
-					lutResolution1d=1024,
-					lutResolution3d=33,
-					lutResolution1d3d1d=[1024,33,2],
-					inputMin=0.0,
-					inputMax=1.0,
-					shaperIn=['linear',0.0,1.0],
-					shaperOut=['linear',0.0,1.0]):
-	
-	# Load CLF
-	print( "Reading CLF : %s" % clfPath )
-	processList = clf.ProcessList(clfPath)
-
-	# For each data format, do something different
-	if lutDataFormat == LUTDATAFORMAT_1D:
-		sampleAndWrite1D(processList,
-						 lutPath,
-						 lutFileFormat,
-						 lutResolution1d,
-						 inputMin,
-						 inputMax,
-						 comment)
-	elif lutDataFormat == LUTDATAFORMAT_3D:
-		sampleAndWrite3D(processList,
-						 lutPath,
-						 lutFileFormat,
-						 lutResolution3d,
-						 inputMin,
-						 inputMax,
-						 comment)
-	elif lutDataFormat == LUTDATAFORMAT_1D_3D_1D:
-		sampleAndWrite1D3D1D(processList,
-							 lutPath,
-							 lutFileFormat,
-							 lutResolution1d3d1d,
-							 shaperIn,
-							 shaperOut,
-							 comment))
-	else:
-		print( "Unsupported LUT data format : %s" % lutDataFormat)
-
 
 
 ################## THIS IS PART OF H.P.Duiker's original convertCLFtoLUT.py and was not changed
@@ -939,12 +1209,271 @@ def createShaper(shaperType,
     return (shaperPL, shaperPLInverse, inputMin, inputMax)
 
 
+def write_1d_3d_1d(lutPath,
+				   samples1dIn,
+				   lutResolution1dIn,
+				   inputMin,
+				   inputMax,
+				   samples3d,
+				   lutResolution3d,
+				   samples1dOut,
+				   lutResolution1dOut,
+				   outputMin,
+				   outputMax,
+				   lutFileFormat,
+				   comment):
+
+	print( "Writing LUT : %s" % lutPath )
+	ocioFormatsToExtensions = {'cinespace' : 'csp',
+							   'clf'	   : 'clf'}
+	#print( lutPath )
+	#print( lutFileFormat )
+
+	if lutFileFormat in ocioFormatsToExtensions:
+		if ocioFormatsToExtensions[lutFileFormat] == 'csp':
+			if samples1dOut == None:
+				write_CSP_1d_3d(lutPath,
+								samples1dIn,
+								lutResolution1dIn,
+								inputMin,
+								inputMax,
+								samples3d,
+								lutResolution3d)
+			else:
+				print( "write_1d_3d_1d - Cinespace (.csp) does not support an output shaper")
+		elif ocioFormatsToExtensions[lutFileFormat] == 'clf':
+			write_CLF_1d_3d_1d(lutPath,
+							   samples1dIn,
+							   lutResolution1dIn,
+							   inputMin,
+							   inputMax,
+							   samples3d,
+							   lutResolution3d,
+							   samples1dOut,
+							   lutResolution1dOut,
+							   outputMin,
+							   outputMax)
+	elif lutFileFormat in [ key.lower() for key in genericLUT.keys()]:
+		format = None
+		for key in genericLUT.keys():
+			if key.lower() == lutFileFormat and len(genericLUT[key])==7:
+				format = key
+				break
+		if not format:
+			print "Selected Output 3D LUT format does not support shaper-LUTs (1D+3D)."
+			return 2
+		write_genericLUT_1d_3d(filename,
+							   samples1dIn,
+							   lutResolution1dIn,
+							   inputMin,
+							   inputMax,
+							   samples3d,
+							   lutResolution3d,
+							   format,
+							   comment)
+	else:
+		print "Invalid Output 3D LUT format: supported ones are: %s"%(['CTL','CSP','spi3d'].extend(genericLUT.keys()))
+		exit 1
+
+def sampleAndWrite3D(processList,
+					 lutPath,
+					 lutFileFormat,
+					 lutResolution3d,
+					 inputMin,
+					 inputMax):
+	print( "sampleAndWrite3D" )
+
+	# Sample all values in 3D range
+	samples = [[[[0.0,0.0,0.0] for i in xrange(lutResolution3d[0])] for i in xrange(lutResolution3d[1])] for i in xrange(lutResolution3d[2])]
+
+	for r in range(lutResolution3d[0]):
+		for g in range(lutResolution3d[1]):
+			for b in range(lutResolution3d[2]):
+
+				sampleValueR = float(r)/(lutResolution3d[0]-1)*(
+					inputMax - inputMin) + inputMin
+				sampleValueG = float(g)/(lutResolution3d[1]-1)*(
+					inputMax - inputMin) + inputMin
+				sampleValueB = float(b)/(lutResolution3d[2]-1)*(
+					inputMax - inputMin) + inputMin
+				sampleValue = [sampleValueR, sampleValueG, sampleValueB]
+				lutValue = processList.process(sampleValue)
+
+				#print( "%d, %d, %d : %3.3f, %3.3f, %3.3f -> %3.3f, %3.3f, %3.3f" % (
+				#	r, g, b,
+				#	sampleValueR, sampleValueG, sampleValueB,
+				#	lutValue[0], lutValue[1], lutValue[2]))
+
+				samples[r][g][b] = lutValue
+
+	# Write 3D LUT
+	write_3d(lutPath,
+			 inputMin,
+			 inputMax,
+			 samples,
+			 lutResolution3d,
+			 lutFileFormat,
+			 comment)
+
+def sampleAndWrite1D3D1D(processList,
+						 lutPath,
+						 lutFileFormat,
+						 lutResolution1d3d1d,
+						 shaperIn,
+						 shaperOut):
+	print( "sampleAndWrite1D3D1D" )
+
+	(lutResolution1dIn, lutResolution3d, lutResolution1dOut) = lutResolution1d3d1d
+	(shaperInType, shaperInMin, shaperInMax) = shaperIn
+	(shaperOutType, shaperOutMin, shaperOutMax) = shaperOut
+
+	#
+	# Create the input and output shaper processLists
+	#
+	(shaperInPL, shaperInPLInverse, inputMin, inputMax) = createShaper(shaperInType, shaperInMin, shaperInMax)
+	(shaperOutPL, shaperOutPLInverse, outputMin, outputMax) = createShaper(shaperOutType, shaperOutMin, shaperOutMax)
+
+	#
+	# Create the input shaper samples
+	#
+	if shaperInType != None:
+		print( "sampleAndWrite1D3D1D - create input shaper" )
+
+		samples1dIn = [0.0]*lutResolution1dIn*3
+		for lutIndex in range(lutResolution1dIn):
+			sampleValue = float(lutIndex)/(lutResolution1dIn-1)*(
+				inputMax - inputMin) + inputMin
+
+			lutValue = shaperInPL.process([sampleValue]*3)
+
+			#print( "%3.3f -> %3.3f" % (sampleValue, lutValue[0]))
+
+			samples1dIn[lutIndex*3:(lutIndex+1)*3] = lutValue
+	else:
+		samples1dIn = None
+
+	#
+	# Sample all values in 3D range
+	# - Use the inverse sampler at the head of the sampling process
+	#
+	print( "sampleAndWrite1D3D1D - create 3D LUT" )
+
+	samples3d = [[[[0.0,0.0,0.0] for i in xrange(lutResolution3d[0])] for i in xrange(lutResolution3d[1])] for i in xrange(lutResolution3d[2])]
+
+	for r in range(lutResolution3d[0]):
+		for g in range(lutResolution3d[1]):
+			for b in range(lutResolution3d[2]):
+
+				sampleValueR = float(r)/(lutResolution3d[0]-1)
+				sampleValueG = float(g)/(lutResolution3d[1]-1)
+				sampleValueB = float(b)/(lutResolution3d[2]-1)
+				sampleValue = [sampleValueR, sampleValueG, sampleValueB]
+
+				if shaperInType != None:
+					shaperInInverseValue = shaperInPLInverse.process(sampleValue)
+				else:
+					shaperInInverseValue = sampleValue
+
+				processedValue = processList.process(shaperInInverseValue)
+
+				if shaperOutType != None:
+					shaperOutValue = shaperOutPL.process(processedValue)
+				else:
+					shaperOutValue = processedValue
+
+				lutValue = shaperOutValue
+
+				#print( "%d, %d, %d : %3.3f, %3.3f, %3.3f -> %3.3f, %3.3f, %3.3f" % (
+				#	r, g, b,
+				#	sampleValueR, sampleValueG, sampleValueB,
+				#	lutValue[0], lutValue[1], lutValue[2]))
+
+				samples3d[r][g][b] = lutValue
+
+	#
+	# Create the output shaper samples
+	#
+	if shaperOutType != None:
+		print( "sampleAndWrite1D3D1D - create output shaper" )
+
+		samples1dOut = [0.0]*lutResolution1dOut*3
+		for lutIndex in range(lutResolution1dOut):
+			sampleValue = float(lutIndex)/(lutResolution1dOut-1)
+
+			lutValue = shaperInPLInverse.process([sampleValue]*3)
+
+			samples1dOut[lutIndex*3:(lutIndex+1)*3] = lutValue
+	else:
+		samples1dOut = None
+
+	#
+	# Write 1D 3D 1D LUT
+	#
+	write_1d_3d_1d(lutPath,
+				   samples1dIn,
+				   lutResolution1dIn,
+				   inputMin,
+				   inputMax,
+				   samples3d,
+				   lutResolution3d,
+				   samples1dOut,
+				   lutResolution1dOut,
+				   outputMin,
+				   outputMax,
+				   lutFileFormat,
+				   comment)
+
+def convertCLFtoLUT(clfPath,
+					lutPath,
+					lutFileFormat,
+					lutDataFormat=LUTDATAFORMAT_1D,
+					lutResolution1d=1024,
+					lutResolution3d=33,
+					lutResolution1d3d1d=[1024,33,2],
+					inputMin=0.0,
+					inputMax=1.0,
+					shaperIn=['linear',0.0,1.0],
+					shaperOut=['linear',0.0,1.0]):
+	
+	# Load CLF
+	print( "Reading CLF : %s" % clfPath )
+	processList = clf.ProcessList(clfPath)
+
+	# For each data format, do something different
+	if lutDataFormat == LUTDATAFORMAT_1D:
+		sampleAndWrite1D(processList,
+						 lutPath,
+						 lutFileFormat,
+						 lutResolution1d,
+						 inputMin,
+						 inputMax,
+						 comment)
+	elif lutDataFormat == LUTDATAFORMAT_3D:
+		sampleAndWrite3D(processList,
+						 lutPath,
+						 lutFileFormat,
+						 lutResolution3d,
+						 inputMin,
+						 inputMax,
+						 comment)
+	elif lutDataFormat == LUTDATAFORMAT_1D_3D_1D:
+		sampleAndWrite1D3D1D(processList,
+							 lutPath,
+							 lutFileFormat,
+							 lutResolution1d3d1d,
+							 shaperIn,
+							 shaperOut,
+							 comment))
+	else:
+		print( "Unsupported LUT data format : %s" % lutDataFormat)
+
+# This is the additional part adding more output LUT formats, by Walter
 def write_genericLUT_3d(filename, 
 				 from_min, 
 				 from_max, 
 				 data, 
 				 resolution, 
-				 format="iridasCube", 
+				 format="IridasCube", 
 				 comment=None):
 	
 	integer_output = False
@@ -977,17 +1506,29 @@ def write_genericLUT_3d(filename,
 				fp.write("# %s%s"%(comment,newline))
 				fp.write(newline)
 		
-		if format == "iridasCube":
+		if format = "TrueligthCube"
+			fp.write("# Truelight Cube v2.0"+newline)
+			fp.write("# lutLength 0"+newline)
+			fp.write("# iDims     3"+newline)
+			fp.write("# oDims     3"+newline)
+			fp.write("# width     %d %d %d"%resolution +newline)
+			fp.write(newline)
+			#fp.write("# InputLUT"+newline)
+			#fp.write("%.3f %.3f %.3f"%(0,0,0) +newline)
+			#fp.write("%.3f %.3f %.3f"%resolution +newline)
+			#fp.write(newline)
+			fp.write("# Cube"+newline)
+		elif format == "IridasCube":
 			fp.write("LUT_3D_SIZE %d%s"%(resolution[0],newline))
 			fp.write(newline)
-		elif format == "Clipster":
+		elif format == "ClipsterXML":
 			integer_output = 65535
 			fp.write('<LUT3D name="%s" N="%d" BitDepth="%d">'%(os.path.split(filename)[1],lutResolution3d,16) +newline)
 			fp.write('	<values>'+newline)
-		elif format == "davinciCube":
+		elif format == "DaVinciCube":
 			fp.write("TITLE \"Generate by Resolve\""+newline)
 			fp.write("LUT_3D_SIZE %d%s"%(resolution[0],newline))
-		elif format = "nucodaCMS":
+		elif format = "NucodaCMS":
 			fp.write("NUCODA_3D_CUBE 1"+newline)
 			fp.write(newline)
 			fp.write("TITLE \"%s\""%os.path.split(lutPath) +newline)
@@ -1018,7 +1559,10 @@ def write_genericLUT_3d(filename,
 						fp.write("%3s"%(firstch,entry,newline))
 		
 		
-		if format == "Clipster":
+		if format = "TruelightCube":
+			fp.write(newline)
+			fp.write("# end"+newline)
+		elif format == "ClipsterXML":
 			fp.write('</values>'+newline)
 			fp.write('</LUT3D>'+newline)
 		#elif format == "":
@@ -1032,7 +1576,7 @@ def write_genericLUT_1d_3d(lutPath,
 					inputMax,
 					samples3d,
 					lutResolution3d,
-					format="nucodaCMS",
+					format="NucodaCMS",
 					comment):
 	
 	integer_output = False
@@ -1069,10 +1613,17 @@ def write_genericLUT_1d_3d(lutPath,
 				fp.write(newline)
 		
 		
-		if format == "iridasCube":
+		if format = "TrueligthCube"
+			fp.write("# Truelight Cube v2.0"+newline)
+			fp.write("# lutLength %d"%lutResolution1dIn +newline)
+			fp.write("# iDims     3"+newline)
+			fp.write("# oDims     3"+newline)
+			fp.write("# width     %d %d %d"%lutResolution3d +newline)
+			fp.write(newline)
+		elif format == "IridasCube":
 			fp.write("LUT_3D_SIZE %d%s"%(resolution[0],newline))
 			fp.write(newline)
-		elif format == "lustre3DL":
+		elif format == "Lustre3DL":
 			integer_output = 4095
 			fp.write("# 3 columns rgb"+newline)
 			fp.write("# %d rows"%(lutResolution3d[0]**3) +newline)
@@ -1081,7 +1632,7 @@ def write_genericLUT_1d_3d(lutPath,
 			fp.write(newline)
 			fp.write("3DMESH"+newline)
 			fp.write("Mesh 4 12"+newline)
-		elif format = "nucodaCMS":
+		elif format = "NucodaCMS":
 			fp.write("NUCODA_3D_CUBE 3"+newline)
 			fp.write(newline)
 			fp.write("TITLE \"%s\""%os.path.split(lutPath)[1] +newline)
@@ -1091,17 +1642,24 @@ def write_genericLUT_1d_3d(lutPath,
 			fp.write("LUT_3D_SIZE %d"%lutResolution3d[0] +newline)
 			fp.write("LUT_3D_INPUT_RANGE %1.3f %1.3f"%(0.,1.) +newline)
 			fp.write(newline)
-		elif format = "":
+		#elif format = "":
 			
 		
 		presize, prenewline, prefirstch, precoordfmt, prenextch = genericLUT[format][7:]
 
-		if format == "lustre3DL":
+		if format == "TruelightCube":
+			fp.write("# InputLUT"+newline)
 			for c in range(lutResolution1dIn):
 				entry = prenextch.join(map(lambda x : "%%%s"%precoordfmt % x, int(samples1dIn[c]*1023)))
 			fp.write("%3s"%(prefirstch,entry,newline))
 			fp.write(newline)
-		elif format == "nucodaCMS":
+			fp.write("# Cube"+newline)
+		elif format == "Lustre3DL":
+			for c in range(lutResolution1dIn):
+				entry = prenextch.join(map(lambda x : "%%%s"%precoordfmt % x, int(samples1dIn[c]*1023)))
+			fp.write("%3s"%(prefirstch,entry,newline))
+			fp.write(newline)
+		elif format == "NucodaCMS":
 			for c in range(lutResolution1dIn):
 				entry = prenextch.join(map(lambda x : "%%%s"%precoordfmt % x, samples1dIn[c]))
 				fp.write("%3s"%(prefirstch,entry,newline))
@@ -1139,7 +1697,10 @@ def write_genericLUT_1d_3d(lutPath,
 						fp.write("%3s"%(firstch,entry,newline))
 		
 		
-		if format == "lustre3DL":
+		if format = "TruelightCube":
+			fp.write(newline)
+			fp.write("# end"+newline)
+		elif format == "Lustre3DL":
 			fp.write("#Tokens required by applications - do not edit"+newline)
 			fp.write(newline)
 			fp.write("LUT8"+newline)

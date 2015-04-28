@@ -3,10 +3,11 @@
 """
 Functions to convert different LUT formats into CommonLUT Format (CLF)
 Additional READ formats added by Walter Arrighetti PhD (walter.arrighetti@gmail.com):
+	* FilmLight Truelight Cube, .cub extension (3D, 1D+3D or 1D LUT)
 	* IRIDAS Cube, .cube extension (3D LUT)
 	* DaVinci Resolve Cube, .cube extension (3D LUT)
-	* Autodesk Lustre 3D LUT, .3dl extension (1D+3D LUT)
-	* Nucoda Color Management System (CMS), .cms extension (3D or 1D+3D LUT)
+	* Autodesk Lustre 3D LUT, .3dl extension (3D LUT)
+	* Digital Vision Nucoda Color Management System (CMS), .cms extension (3D, 1D+3D or 1D LUT)
 	* Rohde & Schwarz Clipster 3D LUT, .xml extension (3D LUT)
 """
 import array
@@ -20,21 +21,78 @@ import clf
 LUTFORMAT_UNKNOWN = 'Unknown'
 LUTFORMAT_1D = '1D'
 LUTFORMAT_3D = '3D'
+UNKNOWN_RGB = True
 
 genericLUText = {
-	"iridasCube":'cube',
-	"lustre3DL":'3dl',
-	"nucodaCMS":'cms',
+	"TruelightCube":'cub',
+	"IridasCube":'cube',
+	"DaVinciCube":'cube',
+	"Lustre3DL":'3dl',
+	"NucodaCMS":'cms',
 	"Clipster":'xml'
 }
 genericLUT = {  # accepted_size  newline  1st.ch  red1st  float.fmt  nextch  commentable?   [ shapersize  newline  1st.ch  float.fmt nextch ]
-	"iridasCube":[ [16,17,32,64],'\r\n',"",UNKNOWN,".6f"," ",True ],
-	"davinciCube":[ [21,33],'\r\n',"",UNKNOWN,".6f"," ",False ],
-	"lustre3DL":[ [17],'\n'," ",True,"-4d"," ",True,    [17],'\n',"","d"," " ],
-	"nucodaCMS":[ [8,9,16,17,32,33,66],'\r\n',"",UNKNOWN,".6f"," ",True,    [8,64,101,1024,4096,65536],'\r\n',"",".6f"," " ],
-	"Clipster":[ [17],'\r\n'," ",UNKNOWN,"d"," ",False ],
+	"TruelightCube":[ [16,17,33,64],'\n'," ",True,".6f"," ",False,    [0,2,101,257,1024],'\n'" ",".6f"," " ],
+	"IridasCube":[ [16,17,32,64],'\r\n',"",UNKNOWN_RGB,".6f"," ",True ],
+	"DaVinciCube":[ [21,33],'\r\n',"",UNKNOWN_RGB,".6f"," ",False ],
+	"Lustre3DL":[ [17],'\n'," ",True,"-4d"," ",True,    [17],'\n',"","d"," " ],
+	"NucodaCMS":[ [8,9,16,17,32,33,66],'\r\n',"",UNKNOWN_RGB,".6f"," ",True,    [8,64,101,1024,4096,65536],'\r\n',"",".6f"," " ],
+	"Clipster":[ [17],'\r\n'," ",UNKNOWN_RGB,"d"," ",False ],
 }
 
+def parse_TruelightCube(lines):
+	cursor, has1D, has3D = 0, False, False
+	line, side, size = 0, 0, 0
+	lutpns, samples1D, samples3D = [], [], []
+
+	if lines[0].strip().split() != ["#","Truelight","Cube","v2.0"]:	return None
+	inheader, n = True, 1
+	CubeVer = float(lines[0].strip().split()[3][1:])
+	if int(CubeVer) != 2:	return None
+	while inheader:
+		line = lines[n].strip().split()
+		if line[0] != "#":
+			inheader = False
+			n += 1
+			break
+		elif line[1] == "lutLength" and line[2].isdigit():
+			has1d = True
+			size = int(line[2])
+		elif line[1] == "iDims" and line[2].isdigit():
+			if int(line[2]) != 3:	return None
+		elif line[1] == "oDims" and line[2].isdigit():
+			if int(line[2]) != 3:	return None
+		elif len(line)==5 and line[1] == "width" and line[2].isdigit() and line[3].isdigit() and line[4].isdigit():
+			has3d = True
+			if int(line[2]) == int(line[3]) == int(line[4]):
+				side = int(line[2])
+			else:	return None
+		elif has1d and line[1]=="InputLUT":	break
+		elif has3d and line[1]=="Cube":	break
+		n += 1
+	inheader, cursor = False, n
+	if (not has1d) or (not has3d):	return None
+
+	if has1d:
+		if lines[cursor].strip().split() != ["#","InputLUT"]:	return None
+		for n in range(cursor+1,cursor+1+size):
+			samples1D.extend( map(float,lines[n].strip().split()) )
+		cursor += 2+size
+		lutpn = clf.LUT1D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut1d", "lut1d")
+		lutpn.setArray(size, samples1D)
+		lutpns.append(lutpn)
+	if has3d:
+		if lines[cursor].strip().split() != ["#","Cube"]:	return None
+		for n in range(cursor+1, cursor+1+(side**3)):
+			samples3D.extend( map(float,lines[n].strip().split()) )
+		cursor += 2+(side**3)
+		lutpn = clf.LUT3D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut3d", "lut3d")
+		lutpn.setArray([side,side,side], samples3D)
+		lutpns.append(lutpn)
+
+	if not lutpns:	return None
+	del samples1D, samples3D, lutpn
+	return lutpns
 
 def parse_IridasCube(lines):
 	samples = []
@@ -53,10 +111,8 @@ def parse_IridasCube(lines):
 	return [ lutpn ]
 
 
-
 def parse_Lustre3DL(lines):
 	pass
-
 
 def parse_NucodaCMS(lines):
 	cursor, title, has1D, has3D, range1D, range3D = 0, None, 0, 0, (None,None), (None,None)
@@ -102,7 +158,7 @@ def parse_NucodaCMS(lines):
 			rangepn.setMaxOutValue(1.0)
 			lutpns.append(rangepn)
 		lutpn = clf.LUT1D(clf.bitDepths["FLOAT16"], clf.bitDepths["FLOAT16"], "lut1d", "lut1d")
-		lutpn.setArray(size, samples3D)
+		lutpn.setArray(size, samples1D)
 		lutpns.append(lutpn)
 	if has3d:									# 3D LUT is either alone or comes *before* 1D LUT
 		for n in range(cursor, cursor+(side**3)):
@@ -129,10 +185,6 @@ def parse_NucodaCMS(lines):
 	del samples1D, samples3D, lutpn
 	return lutpns
 
-
-
-
-
 def parse_ClipsterXML(lines):
 	samples = []
 	header = re.match(r"<LUT3D\s+name='(?P<name>.+)'\s+N='(?P<side>\d+)'\s+BitDepth='(?P<depth>\d+)'>", lines[0], re.I)
@@ -152,8 +204,6 @@ def parse_ClipsterXML(lines):
 	del samples
 	return [ lutpn ]
 
-
-
 def readgenericLUT(lutPath, fileFormat):
 	lines = []
 	if fileFormat not in genericLUText.keys():	return None
@@ -165,10 +215,23 @@ def readgenericLUT(lutPath, fileFormat):
 		lines.append(line)
 	del rawlines
 	if not lines:	return None
-	if fileFormat == "iridasCube":	return parse_IridasCube(lines)
-	elif fileFormat == "lustre3DL":	return parse_Lustre3DL(lines)
-	elif fileFormat == "nucodaCMS":	return parse_NucodaCMS(lines)
-	elif fileFormat == "Clipster":	return parse_ClipsterXML(lines)
+	if fileFormat == "TruelightCube":
+		print "Reading Truelight Cube"
+		return parse_TruelightCube(lines)
+	elif fileFormat == "IridasCube":
+		print "Reading Iridas Cube"
+		return parse_IridasCube(lines)
+	elif fileFormat == "DaVinciCube":
+		pass
+	elif fileFormat == "Lustre3DL":
+		print "Reading Autodesk 3D LUT"
+		return parse_Lustre3DL(lines)
+	elif fileFormat == "NucodaCMS":
+		print "Reading Nucoda CMS"
+		return parse_NucodaCMS(lines)
+	elif fileFormat == "Clipster":
+		print "Reading Clipster XML LUT"
+		return parse_ClipsterXML(lines)
 	else:	return None
 
 # Generate an inverse 1D LUT by evaluating and resampling the original 1D LUT
